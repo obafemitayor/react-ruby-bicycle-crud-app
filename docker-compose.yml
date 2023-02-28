@@ -1,0 +1,43 @@
+version: "2"
+networks:
+  default:
+    driver: bridge
+services:
+  gems:
+    image: busybox
+    volumes:
+      - /usr/local/bundle
+      - /usr/local/node_modules
+  db:
+    build: docker/db/.
+    ports:
+      - "5432:5432"
+    env_file:
+      - docker/db/.env
+  redis:
+    image: redis
+  web:
+    container_name: "crucible_web"
+    build: docker/web/. 
+    environment:
+      - "VIRTUAL_HOST=crucible.test,id.crucible.test,api.crucible.test,app.crucible.test,www.crucible.test"
+      - "WEBPACK_PORT=8080"
+      - "NODE_MODULES_PATH_LEGACY=/usr/local/node_modules" # must match gems volumes above
+      - "CODESPACE_NAME=${CODESPACE_NAME}"
+    env_file:
+      - docker/web/.env
+      # - docker/web/.env_secret
+    volumes_from:
+      - gems
+    volumes:
+      - .:/www:delegated # mount local folder directly
+    ports:
+      - "80:80"
+      - "8080:8080" # ESBuild
+    tty: true
+    stdin_open: true
+    links:
+      - db:postgres
+      - redis
+    tmpfs:
+      - /tmp
